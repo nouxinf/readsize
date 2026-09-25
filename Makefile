@@ -1,2 +1,2 @@
 build:
-	gcc main.c -o readfile
+	gcc main.c -o readsize
