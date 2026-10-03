@@ -1,56 +1,29 @@
-#ifdef __unix__
-#include <unistd.h>
-#elif defined(_WIN32) || defined(WIN32)
-#define OS_windows 1
-#include <fileapi.h>
-#include <direct.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#define getcwd _getcwd
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
 #include <errno.h> 
-#include "tinydir.h"
+#include <sys/types.h>
+#include <sys/stat.h>
+//#include "tinydir.h"
 
-tinydir_file file;
+#ifdef _WIN32
+    #define stat_fn _stat64
+    typedef struct _stat64 stat_t;
+#else
+    #define stat_fn stat
+    typedef struct stat stat_t;
+#endif
 
-long long findSize(char file_name[]) {
-	#if defined(OS_windows)
-		struct _stat buf;
-		int result;
-		result = _stat(file_name, &buf);
-		if (result != 0) {
-			perror( "Problem getting information" );
-	 		switch (errno) {
-				case ENOENT:
-					printf("File %s not found.\n", file_name);
-					break;
-		 		case EINVAL:
-					printf("Invalid parameter to _stat.\n");
-		   		break;
-			default:
-		   		/* Should never be reached. */
-		   		printf("Unexpected error in _stat.\n");
-	  		}
-		} else {
-			return buf.st_size;
-		}
-	#else
-		FILE* fp = fopen(file_name, "r");
-		if (fp == NULL) {
-			printf("Error: File not found!\n");
-			return -1;
-		}
-		fseek(fp, 0L, SEEK_END);
-		long int res = ftell(fp);
-		fclose(fp);
-		return res;
-	#endif
-	
+//tinydir_file file;
+
+bool findSize(const char *path, long long *out) {
+    stat_t st;
+    if (stat_fn(path, &st) != 0) {
+        return false;
+    }
+    *out = (long long)st.st_size;
+    return true;
 }
 
 const char *humanReadableBytes(long long bytes) {
@@ -75,20 +48,18 @@ const char *humanReadableBytes(long long bytes) {
 }
 
 int main(int argc, char *argv[]) {
-	if (argc == 1) {
-		printf("Error: No arguments were provided");
-	} else {
-		if (tinydir_file_open(&file, argv[1]) == 0) {
-			if (file.is_dir) {
-				printf("Folder exists!\n");
-			} else {
-				printf("Path exists but is not a folder\n");
-			}
-		} else {
-			printf("Path does not exist\n");
-		}
-		printf("%s\n", humanReadableBytes(findSize(argv[1])));
-	}
-	
-	return 0;
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s <path>\n", argv[0]);
+        return 1;
+    }
+
+    long long size;
+    if (!findSize(argv[1], &size)) {
+        fprintf(stderr, "readsize: cannot access '%s': %s\n",
+                argv[1], strerror(errno));
+        return 1;
+    }
+
+    printf("%s\n", humanReadableBytes(size));
+    return 0;
 }
