@@ -5,7 +5,7 @@
 #include <errno.h> 
 #include <sys/types.h>
 #include <sys/stat.h>
-//#include "tinydir.h"
+#include "tinydir.h"
 
 #ifdef _WIN32
     #define stat_fn _stat64
@@ -15,7 +15,7 @@
     typedef struct stat stat_t;
 #endif
 
-//tinydir_file file;
+tinydir_file file;
 
 bool findSize(const char *path, long long *out) {
     stat_t st;
@@ -23,6 +23,28 @@ bool findSize(const char *path, long long *out) {
         return false;
     }
     *out = (long long)st.st_size;
+    return true;
+}
+
+static bool dirSize(const char *path, long long *total) {
+    tinydir_dir dir;
+    if (tinydir_open(&dir, path) != 0) return false;
+
+    while (dir.has_next) {
+        tinydir_file f;
+        if (tinydir_readfile(&dir, &f) != 0) break;
+
+        if (strcmp(f.name, ".") != 0 && strcmp(f.name, "..") != 0) {
+            if (f.is_dir) {
+                dirSize(f.path, total);
+            } else {
+                long long sz;
+                if (findSize(f.path, &sz)) *total += sz;
+            }
+        }
+        tinydir_next(&dir);
+    }
+    tinydir_close(&dir);
     return true;
 }
 
@@ -48,18 +70,61 @@ const char *humanReadableBytes(long long bytes) {
 }
 
 int main(int argc, char *argv[]) {
-    if (argc < 2) {
-        fprintf(stderr, "Usage: %s <path>\n", argv[0]);
-        return 1;
-    }
+	const char *path = NULL;
+	bool raw = false;
+	bool disk_usage = false;
+    for (int i = 1; i < argc; i++) {
+		if (strcmp(argv[i], "--disk-usage") == 0) {
+			disk_usage = true;
+		} else if (strcmp(argv[i], "--raw") == 0) {
+			raw = true;
+		} else if (strncmp(argv[i], "--", 2) == 0) {
+			fprintf(stderr, "readsize: unknown option '%s'\n", argv[i]);
+		} else if (path == NULL) {
+			path = argv[i];
+		} else {
+			fprintf(stderr, "readsize: only one path allowed\n");
+			return 1;
+		}
+	}
 
-    long long size;
-    if (!findSize(argv[1], &size)) {
-        fprintf(stderr, "readsize: cannot access '%s': %s\n",
-                argv[1], strerror(errno));
-        return 1;
-    }
+	if (path == NULL && !disk_usage) {
+		fprintf(stderr, "usage: readsize <path> [--raw] [--disk-usage]\n");
+		return 1;
+	}
+	if (disk_usage && path == NULL) {
 
-    printf("%s\n", humanReadableBytes(size));
+	} else {
+		if (tinydir_file_open(&file, argv[1]) == 0) {
+			if (file.is_dir) {
+				// is a folder
+				long long totalSize = 0;
+				if (!dirSize(argv[1], &totalSize)) {
+					fprintf(stderr, "readsize: cannot read '%s'\n", argv[1]);
+					return 1;
+				}
+				if (raw) {
+					printf("%d\n", totalSize);
+				} else {
+					printf("%s\n", humanReadableBytes(totalSize));
+				}
+			} else {
+				long long size;
+				if (!findSize(argv[1], &size)) {
+					fprintf(stderr, "readsize: cannot access '%s': %s\n",
+					argv[1], strerror(errno));
+				return 1;
+				}
+				if (raw) {
+					printf("%d\n", size);
+				} else {
+					printf("%s\n", humanReadableBytes(size));
+				}
+			}
+		} else {
+			printf("File %s wasn't found", argv[1]);
+		}
+	}
+
     return 0;
 }
