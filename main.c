@@ -10,6 +10,7 @@
 #ifdef _WIN32
     #define stat_fn _stat64
     typedef struct _stat64 stat_t;
+	#include <windows.h>
 #else
     #define stat_fn stat
     typedef struct stat stat_t;
@@ -93,7 +94,26 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 	if (disk_usage && path == NULL) {
+		#if _WIN32
+		ULARGE_INTEGER freeToCaller, total, totalFree;
+		if (!GetDiskFreeSpaceExW(NULL, &freeToCaller, &total, &totalFree)) {
+			fprintf(stderr, "GetDiskFreeSpaceExW failed: %lu\n", GetLastError());
+			return 1;
+		}
 
+		ULONGLONG used = total.QuadPart - totalFree.QuadPart;
+		if (raw) {
+			printf("%llu/%llu\n", (unsigned long long)used, (unsigned long long)total.QuadPart);
+			return 0;
+		} else {
+			char usedStr[32], totalStr[32];
+			snprintf(usedStr, sizeof usedStr, "%s", humanReadableBytes(used));
+			snprintf(totalStr, sizeof totalStr, "%s", humanReadableBytes(total.QuadPart));
+			printf("%s/%s\n", usedStr, totalStr);
+			return 0;
+		}
+		#else
+		#endif
 	} else {
 		if (tinydir_file_open(&file, argv[1]) == 0) {
 			if (file.is_dir) {
