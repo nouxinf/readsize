@@ -12,8 +12,7 @@
     typedef struct _stat64 stat_t;
 	#include <windows.h>
 #else
-    #define stat_fn stat
-    typedef struct stat stat_t;
+    #include <sys/statvfs.h>
 #endif
 
 tinydir_file file;
@@ -113,6 +112,24 @@ int main(int argc, char *argv[]) {
 			return 0;
 		}
 		#else
+		struct statvfs fs;
+		if (statvfs("/", &fs) != 0) {
+			perror("statvfs");
+			return 1;
+		}
+		unsigned long long total = (unsigned long long)fs.f_blocks * fs.f_frsize;
+		unsigned long long free = (unsigned long long)fs.f_bavail * fs.f_frsize;
+		unsigned long long used = total - free;
+		if (raw) {
+			printf("%llu/%llu\n", used, total);
+			return 0;
+		} else {
+			char usedStr[32], totalStr[32];
+			snprintf(usedStr, sizeof usedStr, "%s", humanReadableBytes(used));
+			snprintf(totalStr, sizeof totalStr, "%s", humanReadableBytes(total));
+			printf("%s/%s\n", usedStr, totalStr);
+			return 0;
+		}
 		#endif
 	} else {
 		if (tinydir_file_open(&file, argv[1]) == 0) {
