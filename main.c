@@ -10,8 +10,10 @@
 #ifdef _WIN32
     #define stat_fn _stat64
     typedef struct _stat64 stat_t;
-	#include <windows.h>
+    #include <windows.h>
 #else
+    #define stat_fn stat
+    typedef struct stat stat_t;
     #include <sys/statvfs.h>
 #endif
 
@@ -132,34 +134,34 @@ int main(int argc, char *argv[]) {
 		}
 		#endif
 	} else {
-		if (tinydir_file_open(&file, argv[1]) == 0) {
+		if (tinydir_file_open(&file, path) == 0) {
 			if (file.is_dir) {
 				// is a folder
 				long long totalSize = 0;
-				if (!dirSize(argv[1], &totalSize)) {
-					fprintf(stderr, "readsize: cannot read '%s'\n", argv[1]);
+				if (!dirSize(path, &totalSize)) {
+					fprintf(stderr, "readsize: cannot read '%s'\n", path);
 					return 1;
 				}
 				if (raw) {
-					printf("%d\n", totalSize);
+					printf("%lld\n", totalSize);
 				} else {
 					printf("%s\n", humanReadableBytes(totalSize));
 				}
 			} else {
 				long long size;
-				if (!findSize(argv[1], &size)) {
+				if (!findSize(path, &size)) {
 					fprintf(stderr, "readsize: cannot access '%s': %s\n",
-					argv[1], strerror(errno));
+					path, strerror(errno));
 				return 1;
 				}
 				if (raw) {
-					printf("%d\n", size);
+					printf("%lld\n", size);
 				} else {
 					printf("%s\n", humanReadableBytes(size));
 				}
 			}
 		} else {
-			printf("File %s wasn't found", argv[1]);
+			fprintf(stderr, "File %s wasn't found\n", path);
 		}
 	}
 
