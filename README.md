@@ -2,6 +2,13 @@
 
 C or Rust program to show human-readable file names.
 
+![$ readsize readsize.exe
+23.5 KiB
+$ readsize --disk-usage
+1.5 TiB/1.8 TiB
+$ readsize main.c --raw
+4371](screenshot.png)
+
 There are two versions of this program: `readsize` and `readsize-rs`. `readsize` is written in C, and `readsize-rs` is written in Rust. They both have the same function and usage, and are confirmed to work on Windows and Linux (MacOS is likely supported too however this is not verified).
 
 ## Usage
