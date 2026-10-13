@@ -12,6 +12,17 @@ There are two versions of this program: `readsize` and `readsize-rs`. `readsize`
 
 Either provide a path to a folder or file you want to measure the size of, or pass `--disk-usage` to get the storage usage of the drive you are currently in. Pass `--raw` to get the raw size in bytes, and don't pass it for a human readable count.
 
+Example output:
+
+```
+$ readsize readsize.exe
+23.5 KiB
+$ readsize --disk-usage
+1.5 TiB/1.8 TiB
+$ readsize main.c --raw
+4371
+```
+
 ## Building
 
 ### `readsize`
