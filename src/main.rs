@@ -1,4 +1,6 @@
+use fs_extra::dir::get_size;
 use std::env;
+use std::fs::metadata;
 use std::process::ExitCode;
 use sysinfo::Disks;
 
@@ -56,6 +58,36 @@ fn main() -> ExitCode {
                         human_readable_bytes(total)
                     )
                 }
+            }
+        }
+    } else {
+        let md = match metadata(&path) {
+            Ok(m) => m,
+            Err(e) => {
+                eprintln!("readsize-rs: cannot read '{}': {}", path, e);
+                return ExitCode::from(1);
+            }
+        };
+        if md.is_dir() {
+            match get_size(&path) {
+                Ok(size) => {
+                    if raw {
+                        println!("{}", size);
+                    } else {
+                        println!("{}", human_readable_bytes(size));
+                    }
+                }
+                Err(e) => {
+                    eprintln!("readsize-rs: {}", e);
+                    return ExitCode::from(1);
+                }
+            }
+        } else if md.is_file() {
+            let size = md.len();
+            if raw {
+                println!("{}", size);
+            } else {
+                println!("{}", human_readable_bytes(size));
             }
         }
     }
